@@ -1,0 +1,13 @@
+# Eclipse project files
+.cproject
+.project
+
+# Object files
+*.o
+
+# Executables
+client_PFS
+server_PFS
+
+# Emacs backups
+*~
