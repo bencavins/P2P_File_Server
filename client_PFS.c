@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
 	char *server_ip;
 	int server_port;
 
-	if (argc < ARG_MIN) {
+	if (argc < ARG_MIN + 1) {
 		fprintf(stderr, "Usage: %s %s\n", argv[0], USAGE);
 		return EXIT_FAILURE;
 	}
@@ -31,5 +31,5 @@ int main(int argc, char *argv[]) {
 	printf("server ip = %s\n", server_ip);
 	printf("server port = %d\n", server_port);
 
-	return 0;
+	return EXIT_SUCCESS;
 }
