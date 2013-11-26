@@ -77,19 +77,21 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	// Accept connection on listening socket
-	socklen_t len = sizeof(remote_addr);
-	int new_sock = accept(sock, (struct sockaddr *) &remote_addr, &len);
 
-	if (new_sock < 0) {
-		perror("accept");
-		return EXIT_FAILURE;
+	for (;;) {
+
+		// Accept connection on listening socket
+		socklen_t len = sizeof(remote_addr);
+		int new_sock = accept(sock, (struct sockaddr *) &remote_addr, &len);
+
+		if (new_sock < 0) {
+			perror("accept");
+			return EXIT_FAILURE;
+		}
+
+		printf("Connection accepted from %s %d\n",
+				inet_ntoa(remote_addr.sin_addr), ntohs(remote_addr.sin_port));
 	}
-
-	printf("Connection accepted from %s %d\n",
-			inet_ntoa(remote_addr.sin_addr), ntohs(remote_addr.sin_port));
-
-	for (;;) {}
 
 	return EXIT_SUCCESS;
 }
