@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,7 @@
 
 #define USAGE "<port number>"
 #define ARG_MIN 1
+#define BACKLOG 10
 
 
 static void handler(int signum) {
@@ -29,6 +31,7 @@ int main(int argc, char *argv[]) {
 
 	int port;
 	struct sockaddr_in local_addr;
+	struct sockaddr_in remote_addr;
 	int sock;
 	struct sigaction sigact;
 
@@ -56,17 +59,37 @@ int main(int argc, char *argv[]) {
 	local_addr.sin_port = htons(port);
 	local_addr.sin_addr.s_addr = INADDR_ANY;
 
-	// TODO create socket
+	// Create socket
+	if ((sock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+		perror("socket");
+		return EXIT_FAILURE;
+	}
 
-	// TODO Bind socket to port
+	// Bind socket to port
+	if (bind(sock, (struct sockaddr *) &local_addr, sizeof(local_addr)) < 0) {
+		perror("bind");
+		return EXIT_FAILURE;
+	}
 
-	// TODO Listen on socket
+	// Listen on socket
+	if (listen(sock, BACKLOG) < 0) {
+		perror("listen");
+		return EXIT_FAILURE;
+	}
 
-	// TODO Accept connection on listening socket
+	// Accept connection on listening socket
+	socklen_t len = sizeof(remote_addr);
+	int new_sock = accept(sock, (struct sockaddr *) &remote_addr, &len);
+
+	if (new_sock < 0) {
+		perror("accept");
+		return EXIT_FAILURE;
+	}
+
+	printf("Connection accepted from %s %d\n",
+			inet_ntoa(remote_addr.sin_addr), ntohs(remote_addr.sin_port));
 
 	for (;;) {}
-
-	printf("port = %d\n", port);
 
 	return EXIT_SUCCESS;
 }
