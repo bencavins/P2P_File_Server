@@ -7,13 +7,16 @@ all: client_PFS server_PFS
 client_PFS: client_PFS.o
 	$(CC) $(LFLAGS) $^ -o $@
 
-server_PFS: server_PFS.o
+server_PFS: server_PFS.o list.o
 	$(CC) $(LFLAGS) $^ -o $@
 
 client_PFS.o: client_PFS.c
 	$(CC) $(CFLAGS) $<
 
 server_PFS.o: server_PFS.c
+	$(CC) $(CFLAGS) $<
+
+list.o: list.c list.h
 	$(CC) $(CFLAGS) $<
 
 clean:
