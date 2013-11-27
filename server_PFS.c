@@ -16,6 +16,7 @@
 #include <signal.h>
 #include <pthread.h>
 
+#include "protocol.h"
 #include "list.h"
 
 
@@ -48,7 +49,16 @@ static void handler(int signum) {
 // TODO Write thread function
 void *thread_process(void *params) {
 	int sock = *((int *) params);
+	char buf[4];
+	char buf2[8];
+
 	printf("Hello thread\n");
+
+	recv(sock, &buf, sizeof(buf), 0);
+	printf("buf1 = %s\n", buf);
+	recv(sock, &buf2, sizeof(buf2), 0);
+	printf("buf2 = %s\n", buf2);
+
 	return 0;
 }
 
