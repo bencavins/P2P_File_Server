@@ -14,6 +14,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <pthread.h>
+
+#include "list.h"
 
 
 #define USAGE "<port number>"
@@ -21,9 +24,32 @@
 #define BACKLOG 10
 
 
+list_p thread_pool;
+
+
 static void handler(int signum) {
 	printf("Hello, signal %d!\n", signum);
+	printf("list size = %d\n", thread_pool->length);
+
+	// Join all threads
+	while (thread_pool->length > 0) {
+		pthread_t *thread_ptr = list_pop(thread_pool);
+		pthread_join(*thread_ptr, NULL);
+	}
+
+	printf("list size = %d\n", thread_pool->length);
+
+	// Destroy thread pool
+	destroy_list(thread_pool);
+
 	exit(EXIT_SUCCESS);
+}
+
+// TODO Write thread function
+void *thread_process(void *params) {
+	int sock = *((int *) params);
+	printf("Hello thread\n");
+	return 0;
 }
 
 
@@ -52,6 +78,9 @@ int main(int argc, char *argv[]) {
 		perror("sigaction");
 		return EXIT_FAILURE;
 	}
+
+	// Initialize thread pool
+	thread_pool = create_list();
 
 	// Create local address structure
 	memset(&local_addr, '\0', sizeof(local_addr));
@@ -91,6 +120,11 @@ int main(int argc, char *argv[]) {
 
 		printf("Connection accepted from %s %d\n",
 				inet_ntoa(remote_addr.sin_addr), ntohs(remote_addr.sin_port));
+
+		// Handle connection in new thread
+		pthread_t thread;
+		pthread_create(&thread, NULL, thread_process, &new_sock);
+		list_add(thread_pool, &thread, sizeof(thread));
 	}
 
 	return EXIT_SUCCESS;
