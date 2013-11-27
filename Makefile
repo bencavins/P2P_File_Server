@@ -4,10 +4,10 @@ LFLAGS = -g -Wall -Wextra -pthread
 
 all: client_PFS server_PFS
 
-client_PFS: client_PFS.o
+client_PFS: client_PFS.o protocol.o
 	$(CC) $(LFLAGS) $^ -o $@
 
-server_PFS: server_PFS.o list.o
+server_PFS: server_PFS.o protocol.o list.o
 	$(CC) $(LFLAGS) $^ -o $@
 
 client_PFS.o: client_PFS.c
@@ -17,6 +17,9 @@ server_PFS.o: server_PFS.c
 	$(CC) $(CFLAGS) $<
 
 list.o: list.c list.h
+	$(CC) $(CFLAGS) $<
+
+protocol.o: protocol.c protocol.h
 	$(CC) $(CFLAGS) $<
 
 clean:
