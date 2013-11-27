@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "protocol.h"
+
 #define USAGE "<client name> <server IP> <server port>"
 #define ARG_MIN 3
 
@@ -30,6 +32,14 @@ int main(int argc, char *argv[]) {
 	printf("client name = %s\n", client_name);
 	printf("server ip = %s\n", server_ip);
 	printf("server port = %d\n", server_port);
+
+	// TODO Create socket
+
+	// TODO Bind socket
+
+	// TODO Connect to server
+
+	// TODO Register client
 
 	return EXIT_SUCCESS;
 }
