@@ -95,6 +95,15 @@ int main(int argc, char *argv[]) {
 	printf("listen port = %d\n", listen_port);
 
 	// TODO Register client
+	packet_header_p pkt_hdr = create_packet_header();
+	pkt_hdr->command = CMD_REGISTER_CLIENT;
+	pkt_hdr->flags = 0;
+	pkt_hdr->length = strcspn(client_name, "\0") + 1;
+	if (send_packet(server_sock, client_name, 0, pkt_hdr) < 0) {
+		perror("send_packet");
+		return EXIT_FAILURE;
+	}
+	destroy_packet_header(pkt_hdr);
 
 	return EXIT_SUCCESS;
 }
