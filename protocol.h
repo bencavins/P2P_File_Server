@@ -8,7 +8,11 @@
 #ifndef PROTOCOL_H_
 #define PROTOCOL_H_
 
-#define CMD_REGISTER 1
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <string.h>
+
+#define CMD_REGISTER_CLIENT 1
 
 struct packet_header {
 	int flags;
@@ -21,5 +25,9 @@ typedef struct packet_header* packet_header_p;
 packet_header_p create_packet_header();
 
 void destroy_packet_header(packet_header_p pkt_hdr);
+
+int send_packet(int fd, void *data, int flags, packet_header_p pkt_hdr);
+
+char *recv_packet(int fd, int flags, packet_header_p pkt_hdr);
 
 #endif /* PROTOCOL_H_ */
