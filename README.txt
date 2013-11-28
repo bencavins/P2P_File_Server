@@ -1,3 +1,5 @@
+find . -type f \( ! -regex ".*/\..*" \)
+
 list.c and list.h were taken from https://github.com/zhemao/libds
 These are distributed under the MIT license, reproduced below:
 
