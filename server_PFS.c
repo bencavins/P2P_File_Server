@@ -49,17 +49,25 @@ static void handler(int signum) {
 // TODO Write thread function
 void *thread_process(void *params) {
 	int sock = *((int *) params);
-	char buf[4];
-	char buf2[8];
+	char *buf;
+	packet_header_p pkt_hdr = create_packet_header();
 
 	printf("Hello thread\n");
 
-	recv(sock, &buf, sizeof(buf), 0);
-	printf("buf1 = %s\n", buf);
-	recv(sock, &buf2, sizeof(buf2), 0);
-	printf("buf2 = %s\n", buf2);
+	buf = recv_packet(sock, 0, pkt_hdr);
+	if (buf == NULL) {
+		perror("recv_packet");
+		exit(EXIT_FAILURE);
+	}
 
-	return 0;
+	printf("command = %d\n", pkt_hdr->command);
+	printf("flags = %d\n", pkt_hdr->flags);
+	printf("length = %d\n", pkt_hdr->length);
+	printf("data = %s\n", buf);
+
+	free(buf);
+
+	return EXIT_SUCCESS;
 }
 
 
