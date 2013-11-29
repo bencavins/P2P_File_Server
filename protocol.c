@@ -39,23 +39,10 @@ int send_packet(int fd, void *data, int flags, packet_header_p pkt_hdr) {
 	return result;
 }
 
-char *recv_packet(int fd, int flags, packet_header_p pkt_hdr) {
-	char *data;
-	int res;
+int recv_header(int fd, int flags, packet_header_p pkt_hdr) {
+	return recv(fd, pkt_hdr, sizeof(struct packet_header), flags);
+}
 
-	res = recv(fd, pkt_hdr, sizeof(struct packet_header), flags);
-	if (res < 0) {
-		return NULL;
-	} else if (res == 0) {
-		return NULL;
-	}
-	data = malloc(pkt_hdr->length);
-	res = recv(fd, data, pkt_hdr->length, flags);
-	if (res < 0) {
-		return NULL;
-	} else if (res == 0) {
-		return NULL;
-	}
-
-	return data;
+int recv_data(int fd, int flags, void *data, size_t size) {
+	return recv(fd, data, size, flags);
 }
