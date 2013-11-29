@@ -14,10 +14,16 @@
 
 #define CMD_REGISTER_CLIENT 1
 
+#define E_SUCCESS 0
+#define E_DUPLICATE_NAME 1
+
+#define FLAG_ERROR 1
+
 struct packet_header {
 	int flags;
 	int length;
 	int command;
+	int error;
 };
 
 typedef struct packet_header* packet_header_p;
@@ -43,6 +49,11 @@ void destroy_packet_header(packet_header_p pkt_hdr);
 int send_packet(int fd, void *data, int flags, packet_header_p pkt_hdr);
 
 /*
+ * Sends a packet with an error message and no data.
+ */
+int send_error(int fd, int flags, int error);
+
+/*
  * Wrapper for recv call. Receives a packet_header.
  */
 int recv_header(int fd, int flags, packet_header_p pkt_hdr);
@@ -51,5 +62,6 @@ int recv_header(int fd, int flags, packet_header_p pkt_hdr);
  * Wrapper for recv call.
  */
 int recv_data(int fd, int flags, void *data, size_t size);
+
 
 #endif /* PROTOCOL_H_ */
