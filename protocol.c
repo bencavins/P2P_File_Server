@@ -41,12 +41,19 @@ int send_packet(int fd, void *data, int flags, packet_header_p pkt_hdr) {
 
 char *recv_packet(int fd, int flags, packet_header_p pkt_hdr) {
 	char *data;
+	int res;
 
-	if (recv(fd, pkt_hdr, sizeof(struct packet_header), flags) < 0) {
+	res = recv(fd, pkt_hdr, sizeof(struct packet_header), flags);
+	if (res < 0) {
+		return NULL;
+	} else if (res == 0) {
 		return NULL;
 	}
 	data = malloc(pkt_hdr->length);
-	if (recv(fd, data, pkt_hdr->length, flags) < 0) {
+	res = recv(fd, data, pkt_hdr->length, flags);
+	if (res < 0) {
+		return NULL;
+	} else if (res == 0) {
 		return NULL;
 	}
 
