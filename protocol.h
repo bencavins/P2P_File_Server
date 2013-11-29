@@ -28,6 +28,8 @@ void destroy_packet_header(packet_header_p pkt_hdr);
 
 int send_packet(int fd, void *data, int flags, packet_header_p pkt_hdr);
 
-char *recv_packet(int fd, int flags, packet_header_p pkt_hdr);
+int recv_header(int fd, int flags, packet_header_p pkt_hdr);
+
+int recv_data(int fd, int flags, void *data, size_t size);
 
 #endif /* PROTOCOL_H_ */
