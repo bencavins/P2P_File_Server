@@ -113,8 +113,8 @@ void *thread_process(void *params) {
 		if (pkt_hdr->command == CMD_REGISTER_CLIENT) {
 
 			if (client_exists(buf)) {
-				// TODO If client already exists, send error packet
 				printf("client already exists\n");
+				send_error(sock, 0, E_DUPLICATE_NAME);
 			} else {
 				printf("registering client %s\n", buf);
 				list_add(clients, buf, pkt_hdr->length);
