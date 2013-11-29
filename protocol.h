@@ -22,14 +22,34 @@ struct packet_header {
 
 typedef struct packet_header* packet_header_p;
 
+/*
+ * Creates and returns a pointer to a packet_header object. This is created
+ * on the heap and must be cleared with a call to destroy_packet_header to
+ * avoid memory leaks.
+ */
 packet_header_p create_packet_header();
 
+/*
+ * Frees data associated with a packet_header.
+ */
 void destroy_packet_header(packet_header_p pkt_hdr);
 
+/*
+ * A wrapper for send call. Sends a packet to file descriptor fd. Packet
+ * contains data prepended by pkt_hdr. The length of the data field is
+ * specified in pkt_hdr. flags and return value are the same as send. See the
+ * man page for send for more information.
+ */
 int send_packet(int fd, void *data, int flags, packet_header_p pkt_hdr);
 
+/*
+ * Wrapper for recv call. Receives a packet_header.
+ */
 int recv_header(int fd, int flags, packet_header_p pkt_hdr);
 
+/*
+ * Wrapper for recv call.
+ */
 int recv_data(int fd, int flags, void *data, size_t size);
 
 #endif /* PROTOCOL_H_ */
