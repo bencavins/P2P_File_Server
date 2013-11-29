@@ -105,5 +105,7 @@ int main(int argc, char *argv[]) {
 	}
 	destroy_packet_header(pkt_hdr);
 
+	while (1) {}
+
 	return EXIT_SUCCESS;
 }
