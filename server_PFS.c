@@ -28,6 +28,16 @@
 list_p thread_pool;
 list_p clients;
 
+int client_exists(char *name) {
+	list_iter_p iter = list_iterator(clients, FRONT);
+	while (list_next(iter) != NULL) {
+		if (strcmp(name, list_current(iter)) == 0) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
 void print_client_list() {
 	list_iter_p iter = list_iterator(clients, FRONT);
 	printf("Clients:\n");
@@ -83,6 +93,7 @@ void *thread_process(void *params) {
 		printf("command = %d\n", pkt_hdr->command);
 		printf("flags = %d\n", pkt_hdr->flags);
 		printf("length = %d\n", pkt_hdr->length);
+		printf("error = %d\n", pkt_hdr->error);
 
 		buf = malloc(pkt_hdr->length);
 
@@ -101,9 +112,14 @@ void *thread_process(void *params) {
 		/*** Register ***/
 		if (pkt_hdr->command == CMD_REGISTER_CLIENT) {
 
-			printf("registering client %s\n", buf);
-			list_add(clients, buf, pkt_hdr->length);
-			print_client_list();
+			if (client_exists(buf)) {
+				// TODO If client already exists, send error packet
+				printf("client already exists\n");
+			} else {
+				printf("registering client %s\n", buf);
+				list_add(clients, buf, pkt_hdr->length);
+				print_client_list();
+			}
 
 		} else {
 			printf("Unknown command\n");
