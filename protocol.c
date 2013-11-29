@@ -15,6 +15,7 @@ packet_header_p create_packet_header() {
 	pkt_hdr->flags = 0;
 	pkt_hdr->length = 0;
 	pkt_hdr->command = 0;
+	pkt_hdr->error = 0;
 	return pkt_hdr;
 }
 
@@ -36,6 +37,17 @@ int send_packet(int fd, void *data, int flags, packet_header_p pkt_hdr) {
 	memcpy(buf + offset, data, pkt_hdr->length);
 	result = send(fd, buf, n, flags);
 
+	return result;
+}
+
+int send_error(int fd, int flags, int error) {
+	int result;
+	packet_header_p pkt_hdr;
+	pkt_hdr = create_packet_header();
+	pkt_hdr->flags = FLAG_ERROR;
+	pkt_hdr->error = error;
+	result = send(fd, pkt_hdr, sizeof(struct packet_header), flags);
+	destroy_packet_header(pkt_hdr);
 	return result;
 }
 
