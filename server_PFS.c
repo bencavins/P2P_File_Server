@@ -64,25 +64,38 @@ static void handler(int signum) {
 void *thread_process(void *params) {
 
 	int sock = *((int *) params);
-	char *buf;
+	char *buf = NULL;
 
 	printf("Hello thread\n");
 
 	for (;;) {
 
 		packet_header_p pkt_hdr = create_packet_header();
-		buf = recv_packet(sock, MSG_WAITALL, pkt_hdr);
-		if (buf == NULL) {
-			perror("recv_packet");
-			free(buf);
+		int res = recv_header(sock, MSG_WAITALL, pkt_hdr);
+		if (res < 0) {
+			perror("recv_header");
+		} else if (res == 0) {
+			printf("client has closed the connection\n");
 			destroy_packet_header(pkt_hdr);
-			//break;
 			return 0;
 		}
 
 		printf("command = %d\n", pkt_hdr->command);
 		printf("flags = %d\n", pkt_hdr->flags);
 		printf("length = %d\n", pkt_hdr->length);
+
+		buf = malloc(pkt_hdr->length);
+
+		res = recv_data(sock, MSG_WAITALL, buf, pkt_hdr->length);
+		if (res < 0) {
+			perror("recv_data");
+		} else if (res == 0) {
+			printf("client has closed the connection\n");
+			destroy_packet_header(pkt_hdr);
+			free(buf);
+			return 0;
+		}
+
 		printf("data = %s\n", buf);
 
 		/*** Register ***/
