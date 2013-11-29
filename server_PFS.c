@@ -12,6 +12,7 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <signal.h>
 #include <pthread.h>
@@ -24,9 +25,21 @@
 #define ARG_MIN 1
 #define BACKLOG 10
 
-
 list_p thread_pool;
+list_p clients;
 
+void print_client_list() {
+	list_iter_p iter = list_iterator(clients, FRONT);
+	printf("Clients:\n");
+	while (list_next(iter) != NULL) {
+		printf("%s\n", (char *) list_current(iter));
+	}
+}
+
+void register_client(char *name, size_t size) {
+	list_add(clients, name, size);
+	print_client_list();
+}
 
 static void handler(int signum) {
 	printf("Hello, signal %d!\n", signum);
@@ -40,36 +53,58 @@ static void handler(int signum) {
 
 	printf("list size = %d\n", thread_pool->length);
 
-	// Destroy thread pool
+	// Destroy data structures
 	destroy_list(thread_pool);
+	destroy_list(clients);
 
 	exit(EXIT_SUCCESS);
 }
 
 // TODO Write thread function
 void *thread_process(void *params) {
+
 	int sock = *((int *) params);
 	char *buf;
-	packet_header_p pkt_hdr = create_packet_header();
 
 	printf("Hello thread\n");
 
-	buf = recv_packet(sock, 0, pkt_hdr);
-	if (buf == NULL) {
-		perror("recv_packet");
-		exit(EXIT_FAILURE);
+	for (;;) {
+
+		packet_header_p pkt_hdr = create_packet_header();
+		buf = recv_packet(sock, MSG_WAITALL, pkt_hdr);
+		if (buf == NULL) {
+			perror("recv_packet");
+			free(buf);
+			destroy_packet_header(pkt_hdr);
+			//break;
+			return 0;
+		}
+
+		printf("command = %d\n", pkt_hdr->command);
+		printf("flags = %d\n", pkt_hdr->flags);
+		printf("length = %d\n", pkt_hdr->length);
+		printf("data = %s\n", buf);
+
+		/*** Register ***/
+		if (pkt_hdr->command == CMD_REGISTER_CLIENT) {
+
+			printf("registering client %s\n", buf);
+			list_add(clients, buf, pkt_hdr->length);
+			print_client_list();
+
+		} else {
+			printf("Unknown command\n");
+		}
+
+		free(buf);
+		destroy_packet_header(pkt_hdr);
 	}
 
-	printf("command = %d\n", pkt_hdr->command);
-	printf("flags = %d\n", pkt_hdr->flags);
-	printf("length = %d\n", pkt_hdr->length);
-	printf("data = %s\n", buf);
 
-	free(buf);
+	close(sock);
 
-	return EXIT_SUCCESS;
+	return NULL;
 }
-
 
 int main(int argc, char *argv[]) {
 
@@ -97,8 +132,9 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	// Initialize thread pool
+	// Initialize data structures
 	thread_pool = create_list();
+	clients = create_list();
 
 	// Create local address structure
 	memset(&local_addr, '\0', sizeof(local_addr));
