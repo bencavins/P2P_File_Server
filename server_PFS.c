@@ -51,6 +51,17 @@ void register_client(char *name, size_t size) {
 	print_client_list();
 }
 
+void remove_client(char *name) {
+	list_iter_p iter = list_iterator(clients, FRONT);
+	while (list_next(iter) != NULL) {
+		if (strcmp(list_current(iter), name) == 0) {
+			free(list_current(iter));
+			list_pluck(clients, iter->current);
+			break;
+		}
+	}
+}
+
 static void handler(int signum) {
 	printf("Hello, signal %d!\n", signum);
 	printf("list size = %d\n", thread_pool->length);
@@ -70,7 +81,6 @@ static void handler(int signum) {
 	exit(EXIT_SUCCESS);
 }
 
-// TODO Write thread function
 void *thread_process(void *params) {
 
 	int sock = *((int *) params);
@@ -109,7 +119,7 @@ void *thread_process(void *params) {
 
 		printf("data = %s\n", buf);
 
-		/*** Register ***/
+		/*** Register Client ***/
 		if (pkt_hdr->command == CMD_REGISTER_CLIENT) {
 
 			if (client_exists(buf)) {
@@ -119,7 +129,14 @@ void *thread_process(void *params) {
 				printf("registering client %s\n", buf);
 				list_add(clients, buf, pkt_hdr->length);
 				print_client_list();
+				send_error(sock, 0, E_SUCCESS);
 			}
+
+		/*** Remove Client ***/
+		} else if (pkt_hdr->command == CMD_REMOVE_CLIENT) {
+
+			remove_client(buf);
+			print_client_list();
 
 		} else {
 			printf("Unknown command\n");
