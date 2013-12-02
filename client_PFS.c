@@ -18,6 +18,7 @@
 
 #define USAGE "<client name> <server IP> <server port>"
 #define ARG_MIN 3
+#define MAX_INPUT_LEN 1024
 
 int bind_random_port(int sock) {
 	struct sockaddr_in sin;
@@ -45,6 +46,7 @@ int main(int argc, char *argv[]) {
 	int listen_sock;
 	int listen_port;
 	struct sockaddr_in server_addr;
+	char input[MAX_INPUT_LEN];
 
 	if (argc < ARG_MIN + 1) {
 		fprintf(stderr, "Usage: %s %s\n", argv[0], USAGE);
@@ -97,7 +99,7 @@ int main(int argc, char *argv[]) {
 	// TODO Register client
 	packet_header_p pkt_hdr = create_packet_header();
 	pkt_hdr->command = CMD_REGISTER_CLIENT;
-	pkt_hdr->length = strcspn(client_name, "\0") + 1;
+	pkt_hdr->length = strlen(client_name) + 1; //strcspn(client_name, "\0") + 1;
 	if (send_packet(server_sock, client_name, 0, pkt_hdr) < 0) {
 		perror("send_packet");
 		return EXIT_FAILURE;
@@ -105,9 +107,21 @@ int main(int argc, char *argv[]) {
 	recv_header(server_sock, 0, pkt_hdr);
 	printf("error = %d\n", pkt_hdr->error);
 
+	if (pkt_hdr->error == E_DUPLICATE_NAME) {
+		fprintf(stderr, "Client name %s already exists\n", client_name);
+		return EXIT_FAILURE;
+	}
+
 	destroy_packet_header(pkt_hdr);
 
-	while (1) {}
+	while (1) {
+		fgets(input, sizeof(input), stdin);
+		if (strcmp("exit\n", input) == 0) {
+			printf("exiting...\n");
+		} else {
+			printf("unknown command\n");
+		}
+	}
 
 	return EXIT_SUCCESS;
 }
