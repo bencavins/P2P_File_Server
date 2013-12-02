@@ -13,6 +13,7 @@
 #include <string.h>
 
 #define CMD_REGISTER_CLIENT 1
+#define CMD_REMOVE_CLIENT 2
 
 #define E_SUCCESS 0
 #define E_DUPLICATE_NAME 1
