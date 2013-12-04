@@ -1,6 +1,7 @@
 Known Issues:
   - Server only removes client if the client sends a remove command. The 
     server should not trust the client to do this.
+  - Clients can unregister any other clients. This is less than ideal.
 
 find . -type f \( ! -regex ".*/\..*" \)
 
