@@ -37,6 +37,19 @@ int bind_random_port(int sock) {
 	return ntohs(new_sin.sin_port);
 }
 
+void unregister_client(int sock, char *name) {
+	packet_header_p pkt_hdr = create_packet_header();
+	pkt_hdr->command = CMD_REMOVE_CLIENT;
+	pkt_hdr->length = strlen(name) + 1; 
+	if (send_packet(sock, name, 0, pkt_hdr) < 0) {
+		perror("send_packet");
+		return;
+	}
+	recv_header(sock, 0, pkt_hdr);
+	printf("error = %d\n", pkt_hdr->error);
+	destroy_packet_header(pkt_hdr);    
+}
+
 int main(int argc, char *argv[]) {
 
 	char *client_name;
@@ -118,6 +131,8 @@ int main(int argc, char *argv[]) {
 		fgets(input, sizeof(input), stdin);
 		if (strcmp("exit\n", input) == 0) {
 			printf("exiting...\n");
+			unregister_client(server_sock, client_name);
+			return EXIT_SUCCESS;
 		} else {
 			printf("unknown command\n");
 		}
