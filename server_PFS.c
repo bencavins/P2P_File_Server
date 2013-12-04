@@ -133,7 +133,7 @@ void *thread_process(void *params) {
 			}
 
 		/*** Remove Client ***/
-		} else if (pkt_hdr->command == CMD_REMOVE_CLIENT) {
+		} else if (pkt_hdr->command == CMD_UNREGISTER_CLIENT) {
 
 			remove_client(buf);
 			print_client_list();

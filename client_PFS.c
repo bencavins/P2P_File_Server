@@ -39,7 +39,7 @@ int bind_random_port(int sock) {
 
 void unregister_client(int sock, char *name) {
 	packet_header_p pkt_hdr = create_packet_header();
-	pkt_hdr->command = CMD_REMOVE_CLIENT;
+	pkt_hdr->command = CMD_UNREGISTER_CLIENT;
 	pkt_hdr->length = strlen(name) + 1; 
 	if (send_packet(sock, name, 0, pkt_hdr) < 0) {
 		perror("send_packet");
