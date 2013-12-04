@@ -137,6 +137,7 @@ void *thread_process(void *params) {
 
 			remove_client(buf);
 			print_client_list();
+			send_error(sock, 0, E_SUCCESS);
 
 		} else {
 			printf("Unknown command\n");
