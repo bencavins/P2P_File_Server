@@ -15,8 +15,8 @@
 #define CMD_REGISTER_CLIENT 1
 #define CMD_UNREGISTER_CLIENT 2
 
-#define E_SUCCESS 0
-#define E_DUPLICATE_NAME 1
+#define E_SUCCESS 1
+#define E_DUPLICATE_NAME 2
 
 #define FLAG_ERROR 1
 
