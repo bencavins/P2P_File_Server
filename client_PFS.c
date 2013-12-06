@@ -37,6 +37,21 @@ int bind_random_port(int sock) {
 	return ntohs(new_sin.sin_port);
 }
 
+int register_client(int sock, char *name) {
+	int result;
+	packet_header_p pkt_hdr = create_packet_header();
+	pkt_hdr->command = CMD_REGISTER_CLIENT;
+	pkt_hdr->length = strlen(name) + 1;
+	if (send_packet(sock, name, pkt_hdr->length, pkt_hdr) < 0) {
+		return -1;
+	}
+	recv_header(sock, 0, pkt_hdr);
+	result = pkt_hdr->error;
+	printf("error = %d\n", pkt_hdr->error);
+	destroy_packet_header(pkt_hdr);
+	return result;
+}
+
 void unregister_client(int sock, char *name) {
 	packet_header_p pkt_hdr = create_packet_header();
 	pkt_hdr->command = CMD_UNREGISTER_CLIENT;
@@ -60,6 +75,7 @@ int main(int argc, char *argv[]) {
 	int listen_port;
 	struct sockaddr_in server_addr;
 	char input[MAX_INPUT_LEN];
+	int result;
 
 	if (argc < ARG_MIN + 1) {
 		fprintf(stderr, "Usage: %s %s\n", argv[0], USAGE);
@@ -109,23 +125,15 @@ int main(int argc, char *argv[]) {
 
 	printf("listen port = %d\n", listen_port);
 
-	// TODO Register client
-	packet_header_p pkt_hdr = create_packet_header();
-	pkt_hdr->command = CMD_REGISTER_CLIENT;
-	pkt_hdr->length = strlen(client_name) + 1; //strcspn(client_name, "\0") + 1;
-	if (send_packet(server_sock, client_name, 0, pkt_hdr) < 0) {
-		perror("send_packet");
+	result = register_client(server_sock, client_name);
+	printf("result = %d\n", result);
+	if (result == E_DUPLICATE_NAME) {
+		fprintf(stderr, "register_client: Client name %s already exists\n", client_name);
+		return EXIT_FAILURE;
+	} else if (result < 0) {
+		perror("register_client");
 		return EXIT_FAILURE;
 	}
-	recv_header(server_sock, 0, pkt_hdr);
-	printf("error = %d\n", pkt_hdr->error);
-
-	if (pkt_hdr->error == E_DUPLICATE_NAME) {
-		fprintf(stderr, "Client name %s already exists\n", client_name);
-		return EXIT_FAILURE;
-	}
-
-	destroy_packet_header(pkt_hdr);
 
 	while (1) {
 		fgets(input, sizeof(input), stdin);
