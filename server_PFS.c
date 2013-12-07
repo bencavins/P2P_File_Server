@@ -62,6 +62,20 @@ void remove_client(char *name) {
 	}
 }
 
+int request_file_list(int sock) {
+	int result;
+	packet_header_p pkt_hdr = create_packet_header();
+	pkt_hdr->command = CMD_LS;
+	pkt_hdr->length = 0;
+	if (send_packet(sock, "", 0, pkt_hdr) < 0) {
+		return -1;
+	}
+	recv_header(sock, 0, pkt_hdr);
+	result = pkt_hdr->error;
+	destroy_packet_header(pkt_hdr);
+	return result;
+}
+
 static void handler(int signum) {
 	printf("Hello, signal %d!\n", signum);
 	printf("list size = %d\n", thread_pool->length);
@@ -84,6 +98,7 @@ static void handler(int signum) {
 void *thread_process(void *params) {
 
 	int sock = *((int *) params);
+	int result;
 	char *buf = NULL;
 
 	printf("Hello thread\n");
@@ -130,6 +145,15 @@ void *thread_process(void *params) {
 				list_add(clients, buf, pkt_hdr->length);
 				print_client_list();
 				send_error(sock, 0, E_SUCCESS);
+
+				// TODO Request file list from client
+				result = request_file_list(sock);
+				if (result < 0) {
+					perror("request_file_list");
+				} else if (result == E_SUCCESS) {
+					// TODO Add files to master list
+					printf("Client says success!\n");
+				}
 			}
 
 		/*** Remove Client ***/
@@ -139,6 +163,7 @@ void *thread_process(void *params) {
 			print_client_list();
 			send_error(sock, 0, E_SUCCESS);
 
+		/*** Unknown Command ***/
 		} else {
 			printf("Unknown command\n");
 		}
