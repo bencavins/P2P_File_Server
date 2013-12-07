@@ -14,6 +14,7 @@
 
 #define CMD_REGISTER_CLIENT 1
 #define CMD_UNREGISTER_CLIENT 2
+#define CMD_LS 3
 
 #define E_SUCCESS 1
 #define E_DUPLICATE_NAME 2
