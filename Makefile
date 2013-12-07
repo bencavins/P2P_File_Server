@@ -4,7 +4,7 @@ LFLAGS = -g -Wall -Wextra -pthread
 
 all: client_PFS server_PFS
 
-client_PFS: client_PFS.o protocol.o
+client_PFS: client_PFS.o protocol.o list.o
 	$(CC) $(LFLAGS) $^ -o $@
 
 server_PFS: server_PFS.o protocol.o list.o
