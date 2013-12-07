@@ -38,12 +38,8 @@ void *thread_process(void *params) {
 	int retval;
 
 	for (;;) {
-		// TODO Wait for server requests
-		// TODO use select
+
 		pkt_hdr = create_packet_header();
-//		recv_header(sock, 0, pkt_hdr);
-//		printf("command = %d\n", pkt_hdr->command);
-//		destroy_packet_header(pkt_hdr);
 
 		FD_ZERO(&fdset);
 		FD_SET(sock, &fdset);
@@ -149,7 +145,7 @@ void *listen_process(void *params) {
 			perror("select");
 		} else if (retval > 0) {
 			if (FD_ISSET(sock, &fdset)) {
-				new_sock = accept(sock, &remote_addr, &len);
+				new_sock = accept(sock, (struct sockaddr *) &remote_addr, &len);
 				printf("accepted\n");
 				printf("port = %d\n", ntohs(remote_addr.sin_port));
 				// TODO spawn new thread to handle possible get request
