@@ -29,10 +29,12 @@
 
 int end = 0;
 sem_t mutex;
+list_p thread_pool;
 
 void *thread_process(void *params) {
 	int sock = *((int *) params);
 	packet_header_p pkt_hdr;
+	void *buf = NULL;
 	fd_set fdset;
 	struct timeval tv;
 	int retval;
@@ -52,15 +54,24 @@ void *thread_process(void *params) {
 		if (retval < 0) {
 			perror("select");
 		} else if (retval == 0) {
-			printf("timeout!\n");
+			//printf("timeout!\n");
 		} else {
 			if (FD_ISSET(sock, &fdset)) {
-				printf("yay data!\n");
-				recv_header(sock, 0, pkt_hdr);
+				retval = toreceive(sock, 0, &pkt_hdr, &buf, 1, 0);
+				if (retval == 0) {
+					printf("timeout, maybe\n");
+				}
 				printf("command = %d\n", pkt_hdr->command);
 				if (pkt_hdr->command == CMD_LS) {
-					send_error(sock, 0, E_SUCCESS);
+					send_error(sock, 0, EXIT_SUCCESS);
 				}
+				free(buf);
+//				printf("yay data!\n");
+//				recv_header(sock, 0, pkt_hdr);
+//				printf("command = %d\n", pkt_hdr->command);
+//				if (pkt_hdr->command == CMD_LS) {
+//					send_error(sock, 0, E_SUCCESS);
+//				}
 			}
 		}
 
@@ -122,6 +133,34 @@ void unregister_client(int sock, char *name) {
 	destroy_packet_header(pkt_hdr);    
 }
 
+int spawn_thread(void *(*start_routine) (void *), void *arg) {
+	pthread_t thread;
+	int retval;
+	sem_wait(&mutex);
+	retval = pthread_create(&thread, NULL, start_routine, arg);
+	list_add(thread_pool, &thread, sizeof(thread));
+	sem_post(&mutex);
+	return retval;
+}
+
+void *handle_get(void *params) {
+	int sock = *((int *) params);
+	int retval;
+	packet_header_p ph = NULL;
+	void *buf = NULL;
+
+	retval = toreceive(sock, 0, &ph, &buf, 1, 0);
+	if (retval < 0) {
+		perror("torecieve");
+		return NULL;
+	}
+	printf("buffer = %s\n", (char *) buf);
+
+	free(buf);
+
+	return NULL;
+}
+
 void *listen_process(void *params) {
 	int sock = *((int *) params);
 	struct sockaddr_in remote_addr;
@@ -131,7 +170,6 @@ void *listen_process(void *params) {
 	struct timeval tv;
 	int retval;
 
-	// TODO code select function to check for accept
 	for (;;) {
 		FD_ZERO(&fdset);
 		FD_SET(sock, &fdset);
@@ -148,7 +186,8 @@ void *listen_process(void *params) {
 				new_sock = accept(sock, (struct sockaddr *) &remote_addr, &len);
 				printf("accepted\n");
 				printf("port = %d\n", ntohs(remote_addr.sin_port));
-				// TODO spawn new thread to handle possible get request
+				// TODO Handle get request
+				spawn_thread(handle_get, &new_sock);
 			}
 		}
 
@@ -163,6 +202,34 @@ void *listen_process(void *params) {
 	return NULL;
 }
 
+int send_get(char *filename, char *ip, char *port) {
+	int sock;
+	struct sockaddr_in remote_addr;
+	socklen_t len = sizeof(remote_addr);
+	packet_header_p ph;
+
+	memset(&remote_addr, '\0', sizeof(remote_addr));
+	remote_addr.sin_family = AF_INET;
+	remote_addr.sin_port = htons(atoi(port));
+	remote_addr.sin_addr.s_addr = inet_addr(ip);
+
+	if ((sock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+		perror("socket");
+		return -1;
+	}
+
+	if (connect(sock, (struct sockaddr *) &remote_addr, len) < 0) {
+		perror("connect");
+		return -1;
+	}
+
+	ph = create_packet_header();
+	ph->command = CMD_GET;
+	ph->length = strlen(filename) + 1;
+
+	return send_packet(sock, filename, 0, ph);
+}
+
 int main(int argc, char *argv[]) {
 
 	char *client_name;
@@ -174,7 +241,6 @@ int main(int argc, char *argv[]) {
 	struct sockaddr_in server_addr;
 	char input[MAX_INPUT_LEN];
 	int result;
-	list_p thread_pool;
 
 	if (argc < ARG_MIN + 1) {
 		fprintf(stderr, "Usage: %s %s\n", argv[0], USAGE);
@@ -237,11 +303,13 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	// TODO spawn thread that waits for get requests
-	pthread_t listen_thread;
-	pthread_create(&listen_thread, NULL, listen_process, &listen_sock);
-	list_add(thread_pool, &listen_thread, sizeof(listen_thread));
+	// Spawn thread that waits for get requests
+	if (spawn_thread(listen_process, &listen_sock)) {
+		perror("spawn_thread");
+		return EXIT_FAILURE;
+	}
 
+	// Register client with server
 	result = register_client(server_sock, client_name);
 	printf("result = %d\n", result);
 	if (result == E_DUPLICATE_NAME) {
@@ -252,33 +320,58 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	// TODO spawn thread that waits for server requests
-	pthread_t thread;
-	pthread_create(&thread, NULL, thread_process, &server_sock);
-	//pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-	//pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-	list_add(thread_pool, &thread, sizeof(thread));
+	// Spawn thread that waits for server requests
+	if (spawn_thread(thread_process, &server_sock)) {
+		perror("spawn_thread");
+		return EXIT_FAILURE;
+	}
 
 	while (1) {
 		printf(">> ");
 		fgets(input, sizeof(input), stdin);
+
 		if (strcmp("exit\n", input) == 0) {
+
 			printf("exiting...\n");
 			unregister_client(server_sock, client_name);
 			sem_wait(&mutex);
 			end = 1;
 			sem_post(&mutex);
 			break;
+
+		} else if (strncmp("get", input, 3) == 0) {
+
+			char filename[FILENAME_MAX];
+			char ip_addr[32];
+			char port_str[16];
+			//char data[FILENAME_MAX + 16];
+
+			sscanf(input, "get %s %s %s", filename, ip_addr, port_str);
+			printf("filename = %s\n", filename);
+			printf("ip = %s\n", ip_addr);
+			printf("port = %s\n", port_str);
+
+			send_get(filename, ip_addr, port_str);
+
+//			memset(data, '\0', sizeof(data));
+//			strcat(data, filename);
+//			strcat(data, " ");
+//			strcat(data, port_str);
+//
+//			packet_header_p ph = create_packet_header();
+//			ph->length = strlen(data) + 1;
+//			ph->command = CMD_GET;
+
 		} else {
+
 			printf("unknown command\n");
+
 		}
 	}
 
 	// Join threads
 	while (thread_pool->length > 0) {
 		pthread_t *thread_ptr = list_pop(thread_pool);
-		//pthread_cancel(*thread_ptr);
-		//pthread_kill(*thread_ptr, SIGINT);
 		pthread_join(*thread_ptr, NULL);
 	}
 
