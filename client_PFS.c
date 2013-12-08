@@ -136,6 +136,10 @@ void *thread_process(void *params) {
 						ph->flags = 0;
 						ph->length = strlen(buf) + 1;
 						send_packet(sock, buf, 0, ph);
+						free(buf);
+						buf = NULL;
+						toreceive(sock, 0, &ph, &buf, 1, 0);
+						printf("%s\n", (char *) buf);
 						destroy_packet_header(ph);
 					}
 					//send_error(sock, 0, E_SUCCESS);
@@ -333,7 +337,7 @@ int perform_get(char *filename, char *ip, char *port) {
 	struct sockaddr_in remote_addr;
 	socklen_t len = sizeof(remote_addr);
 	packet_header_p ph;
-	void *buf;
+	void *buf = NULL;
 	FILE *fp;
 
 	// Create address structure
