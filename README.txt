@@ -1,10 +1,58 @@
-Known Issues:
+=================================================
+  CSCI 4273
+  Network Systems
+  Programming Assignment 4
+  Peer-to-Peer File Server
+  Written by Ben Cavins (cavinsb@colorado.edu)
+=================================================
+
+=================================================
+  Files
+=================================================
+
+client_PFS.c
+server_PFS.c
+protocol.h
+protocol.c
+list.h
+list.c
+Makefile
+README.txt
+
+=================================================
+  Examples
+=================================================
+
+--- Build ---
+make
+
+--- Run ---
+./server_PFS <port number>
+./client_PFS <client name> <server ip> <server port>
+
+=================================================
+  General Info
+=================================================
+
+This is an implementation of a simple peer-to-peer file sharing service.
+Clients register with a central server which keeps records of registered
+clients and a master list of all files in the network. Clients use this master
+list to connect with and request files from each other. 
+
+=================================================
+  Known Issues
+=================================================
+
   - Server only removes client if the client sends a remove command. The 
     server should not trust the client to do this.
   - Clients can unregister any other clients. This is less than ideal.
-  - Clients occationally hang when exiting
+  - Clients occationally hang when exiting.
+  - Master file list only updates when a client registers with the server.
+  - Master file list never removes or updates any of its entries.
 
-find . -type f \( ! -regex ".*/\..*" \)
+=================================================
+  Borrowed Code
+=================================================
 
 list.c and list.h were taken from https://github.com/zhemao/libds
 These are distributed under the MIT license, reproduced below:
