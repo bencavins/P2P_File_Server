@@ -11,3 +11,9 @@ server_PFS
 
 # Emacs backups
 *~
+
+# Test directories
+testdir1/*
+testdir2/*
+testdir3/*
+testdir4/*
