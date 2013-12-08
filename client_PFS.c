@@ -26,10 +26,74 @@
 #define ARG_MIN 3
 #define MAX_INPUT_LEN 1024
 #define BACKLOG 10
+#define BUF_MIN 24
 
 int end = 0;
 sem_t mutex;
 list_p thread_pool;
+
+int perform_ls(char **buf) {
+	FILE *fp;
+	int current_len = 0;
+	size_t current_max = BUF_MIN;
+	char *line;
+	size_t len = 0;
+	ssize_t read;
+	//char size_str[24];
+	//char filename[FILENAME_MAX];
+	char perms[12];
+	char links[12];
+	char bytes[32];
+	char month[12];
+	char day[4];
+	char time[8];
+	char name[FILENAME_MAX];
+
+	/* Get file list */
+	if ((fp = popen("ls -go", "r")) == NULL) {
+		perror("popen");
+		return -1;
+	}
+
+	/* Allocate memory for buffer */
+	if (*buf == NULL) {
+		*buf = malloc(BUF_MIN);
+		if (*buf == NULL) {
+			perror("malloc");
+			return -1;
+		}
+	} else {
+		*buf = realloc(*buf, BUF_MIN);
+		if (*buf == NULL) {
+			perror("realloc");
+			return -1;
+		}
+	}
+	memset(*buf, '\0', BUF_MIN);
+
+	/* The first line is irrelevant. Read it and throw it away */
+	read = getline(&line, &len, fp);
+
+	/* Add file names and sizes to buffer */
+	while ((read = getline(&line, &len, fp)) != -1) {
+		//sscanf(line, "%s %s", size_str, filename);
+		sscanf(line, "%s %s %s %s %s %s %s", perms, links, bytes, month, day, time, name);
+		/* Reallocate buffer if needed */
+		if (current_len + strlen(bytes) + strlen(name) + 2*strlen(" ") + 1 > current_max) {
+			current_max *= 2;
+			*buf = realloc(*buf, current_max);
+			printf("new max = %d\n", (int) current_max);
+		}
+		strcat(*buf, name);
+		strcat(*buf, " ");
+		strcat(*buf, bytes);
+		strcat(*buf, " ");
+		current_len += strlen(name) + strlen(bytes) + 2*strlen(" ") + 1;
+	}
+
+	free(line);
+	return 0;
+}
 
 void *thread_process(void *params) {
 	int sock = *((int *) params);
@@ -63,7 +127,18 @@ void *thread_process(void *params) {
 				}
 				printf("command = %d\n", pkt_hdr->command);
 				if (pkt_hdr->command == CMD_LS) {
-					send_error(sock, 0, EXIT_SUCCESS);
+					if (perform_ls((char **) &buf) < 0) {
+						fprintf(stderr, "ls failed\n");
+					} else {
+						packet_header_p ph = create_packet_header();
+						ph->command = 0;
+						ph->error = E_SUCCESS;
+						ph->flags = 0;
+						ph->length = strlen(buf) + 1;
+						send_packet(sock, buf, 0, ph);
+						destroy_packet_header(ph);
+					}
+					//send_error(sock, 0, E_SUCCESS);
 				}
 				free(buf);
 //				printf("yay data!\n");
