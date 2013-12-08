@@ -40,7 +40,7 @@ typedef struct client {
 
 list_p thread_pool;
 list_p clients;
-
+list_p master_list;
 
 int client_exists(char *name) {
 	list_iter_p iter = list_iterator(clients, FRONT);
@@ -51,6 +51,17 @@ int client_exists(char *name) {
 		}
 	}
 	return 0;
+}
+
+client_t *get_client_by_sock(int sock) {
+	list_iter_p iter = list_iterator(clients, FRONT);
+	while (list_next(iter) != NULL) {
+		client_t *client = list_current(iter);
+		if (sock == client->sock) {
+			return client;
+		}
+	}
+	return NULL;
 }
 
 void print_client_list() {
@@ -90,18 +101,53 @@ void remove_client(char *name) {
 	}
 }
 
-int request_file_list(int sock) {
+int add_files(int sock, char *data) {
+	return 0;
+}
+
+//int request_file_list(int sock) {
+//	int result;
+//	packet_header_p pkt_hdr = create_packet_header();
+//	pkt_hdr->command = CMD_LS;
+//	pkt_hdr->length = 0;
+//	if (send_packet(sock, "", 0, pkt_hdr) < 0) {
+//		return -1;
+//	}
+//	recv_header(sock, 0, pkt_hdr);
+//	result = pkt_hdr->error;
+//	destroy_packet_header(pkt_hdr);
+//	return result;
+//}
+int perform_ls(int sock) {
 	int result;
-	packet_header_p pkt_hdr = create_packet_header();
-	pkt_hdr->command = CMD_LS;
-	pkt_hdr->length = 0;
-	if (send_packet(sock, "", 0, pkt_hdr) < 0) {
+	packet_header_p ph = create_packet_header();
+	void *buf = NULL;
+
+	ph->command = CMD_LS;
+	ph->error = 0;
+	ph->flags = 0;
+	ph->length = 0;
+
+	if (send_packet(sock, "", 0, ph) < 0) {
+		perror("send_packet");
 		return -1;
 	}
-	recv_header(sock, 0, pkt_hdr);
-	result = pkt_hdr->error;
-	destroy_packet_header(pkt_hdr);
-	return result;
+
+	result = toreceive(sock, 0, &ph, &buf, 1, 0);
+
+	if (ph->error != E_SUCCESS) {
+		return -1;
+	}
+
+	if (buf != NULL) {
+		printf("Buffer = %s\n", (char *) buf);
+		// TODO Add files to master list
+		result = add_files(sock, (char *) buf);
+	}
+
+	destroy_packet_header(ph);
+	free(buf);
+	return 0;
 }
 
 static void handler(int signum) {
@@ -119,6 +165,7 @@ static void handler(int signum) {
 	// Destroy data structures
 	destroy_list(thread_pool);
 	destroy_list(clients);
+	destroy_list(master_list);
 
 	exit(EXIT_SUCCESS);
 }
@@ -176,13 +223,15 @@ void *thread_process(void *params) {
 				send_error(sock, 0, E_SUCCESS);
 
 				// TODO Request file list from client
-				result = request_file_list(sock);
+				result = perform_ls(sock);
 				if (result < 0) {
-					perror("request_file_list");
-				} else if (result == E_SUCCESS) {
-					// TODO Add files to master list
-					printf("Client says success!\n");
+					fprintf(stderr, "ls failed\n");
 				}
+//				if (result < 0) {
+//					perror("request_file_list");
+//				} else if (result == E_SUCCESS) {
+//					printf("Client says success!\n");
+//				}
 			}
 
 		/*** Remove Client ***/
@@ -236,6 +285,7 @@ int main(int argc, char *argv[]) {
 	// Initialize data structures
 	thread_pool = create_list();
 	clients = create_list();
+	master_list = create_list();
 
 	// Create local address structure
 	memset(&local_addr, '\0', sizeof(local_addr));
