@@ -22,6 +22,8 @@
 
 #define FLAG_ERROR 1
 
+#define MAX_CLIENT_NAME_LEN 64
+
 struct packet_header {
 	int flags;
 	int length;
