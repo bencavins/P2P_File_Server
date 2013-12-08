@@ -105,12 +105,26 @@ int bind_random_port(int sock) {
 	return ntohs(new_sin.sin_port);
 }
 
-int register_client(int sock, char *name) {
+int register_client(int sock, char *name, int port) {
 	int result;
-	packet_header_p pkt_hdr = create_packet_header();
+	packet_header_p pkt_hdr;
+	char port_str[24];
+	char data[strlen(name) + 1 + sizeof(port_str)];
+
+	snprintf(port_str, sizeof(port_str), "%d", port);
+
+	pkt_hdr = create_packet_header();
 	pkt_hdr->command = CMD_REGISTER_CLIENT;
-	pkt_hdr->length = strlen(name) + 1;
-	if (send_packet(sock, name, pkt_hdr->length, pkt_hdr) < 0) {
+	pkt_hdr->error = 0;
+	pkt_hdr->flags = 0;
+	pkt_hdr->length = sizeof(data);
+
+	memset(data, '\0', sizeof(data));
+	strcat(data, name);
+	strcat(data, " ");
+	strcat(data, port_str);
+
+	if (send_packet(sock, data, pkt_hdr->length, pkt_hdr) < 0) {
 		return -1;
 	}
 	recv_header(sock, 0, pkt_hdr);
@@ -159,7 +173,7 @@ void *handle_get(void *params) {
 	}
 	printf("buffer = %s\n", (char *) buf);
 
-	// TODO Open file and read data
+	/* Open file */
 	if ((fp = fopen((char *) buf, "rb")) == NULL) {
 		perror("fopen");
 		return NULL;
@@ -183,7 +197,7 @@ void *handle_get(void *params) {
 	/* Read data from file */
 	fread(file_data, sizeof(char), fsize, fp);
 
-	// TODO Send data to peer
+	/* Send data to peer */
 	ph->command = 0;
 	ph->error = E_SUCCESS;
 	ph->flags = FLAG_ERROR;
@@ -379,7 +393,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Register client with server
-	result = register_client(server_sock, client_name);
+	result = register_client(server_sock, client_name, listen_port);
 	printf("result = %d\n", result);
 	if (result == E_DUPLICATE_NAME) {
 		fprintf(stderr, "register_client: Client name %s already exists\n", client_name);
