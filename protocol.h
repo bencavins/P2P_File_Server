@@ -15,6 +15,7 @@
 #define CMD_REGISTER_CLIENT 1
 #define CMD_UNREGISTER_CLIENT 2
 #define CMD_LS 3
+#define CMD_GET 4
 
 #define E_SUCCESS 1
 #define E_DUPLICATE_NAME 2
@@ -64,6 +65,8 @@ int recv_header(int fd, int flags, packet_header_p pkt_hdr);
  * Wrapper for recv call.
  */
 int recv_data(int fd, int flags, void *data, size_t size);
+
+int toreceive(int fd, int flags, packet_header_p *pkt_hdr, void **data, long sec, long usec);
 
 
 #endif /* PROTOCOL_H_ */

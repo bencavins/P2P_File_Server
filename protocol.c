@@ -6,6 +6,7 @@
  */
 
 
+#include <sys/select.h>
 #include <stdlib.h>
 
 #include "protocol.h"
@@ -57,4 +58,49 @@ int recv_header(int fd, int flags, packet_header_p pkt_hdr) {
 
 int recv_data(int fd, int flags, void *data, size_t size) {
 	return recv(fd, data, size, flags);
+}
+
+int toreceive(int fd, int flags, packet_header_p *pkt_hdr, void **data, long sec, long usec) {
+	fd_set fdset;
+	struct timeval tv;
+	int bytes_recvd = 0;
+	int retval;
+	packet_header_p ph;
+
+	FD_ZERO(&fdset);
+	FD_SET(fd, &fdset);
+
+	tv.tv_sec = sec;
+	tv.tv_usec = usec;
+
+	retval = select(fd+1, &fdset, NULL, NULL, &tv);
+
+	if (retval < 0) {
+		return -1;
+	} else if (retval == 0) {
+		return 0;
+	} else {
+		if (FD_ISSET(fd, &fdset)) {
+			if (*pkt_hdr == NULL) {
+				*pkt_hdr = create_packet_header();
+			}
+			retval = recv_header(fd, flags, *pkt_hdr);
+			if (retval <= 0) {
+				return -1;
+			}
+			ph = *pkt_hdr;
+			bytes_recvd += retval;
+			if (ph->length > 0) {
+				if (*data == NULL) {
+					*data = malloc(ph->length);
+				}
+				retval = recv_data(fd, flags, *data, ph->length);
+				if (retval <= 0) {
+					return -1;
+				}
+				bytes_recvd += retval;
+			}
+		}
+		return bytes_recvd;
+	}
 }
