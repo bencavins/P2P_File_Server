@@ -102,7 +102,67 @@ void remove_client(char *name) {
 }
 
 int add_files(int sock, char *data) {
+	client_t *client;
+	ml_entry_t entry;
+	char *filename;
+	char ip[24];
+	char *bytes;
+	struct sockaddr_in addr;
+	socklen_t len = sizeof(addr);
+	int first = 1;
+	client = get_client_by_sock(sock);
+	if (getpeername(sock, (struct sockaddr *) &addr, &len) < 0) {
+		perror("getpeername");
+		return -1;
+	}
+	strncpy(ip, inet_ntoa(addr.sin_addr), sizeof(ip));
+	while (1) {
+		if (first) {
+			filename = strtok(data, " ");
+			bytes = strtok(NULL, " ");
+			first = 0;
+		} else {
+			filename = strtok(NULL, " ");
+			bytes = strtok(NULL, " ");
+		}
+		if (filename == NULL || bytes == NULL) {
+			break;
+		}
+		strncpy(entry.filename, filename, sizeof(entry.filename));
+		strncpy(entry.ip, ip, sizeof(entry.ip));
+		strncpy(entry.owner, client->name, sizeof(entry.owner));
+		strncpy(entry.port, client->listen_port, sizeof(entry.port));
+		strncpy(entry.size, bytes, sizeof(entry.size));
+		list_add(master_list, &entry, sizeof(entry));
+	}
 	return 0;
+}
+
+void create_file_list(char *buf) {
+	list_iter_p iter = list_iterator(master_list, FRONT);
+	char line[sizeof(ml_entry_t) + 18];
+	sprintf(buf, "File Name || File Size || File Owner || Owner IP || Owner Port\n");
+	while (list_next(iter) != NULL) {
+		ml_entry_t *entry = list_current(iter);
+		sprintf(line, "%s || %s || %s || %s || %s\n",
+				entry->filename, entry->size, entry->owner, entry->ip, entry->port);
+		strcat(buf, line);
+	}
+}
+
+void print_file_list() {
+//	list_iter_p iter = list_iterator(master_list, FRONT);
+//	printf("File Name || File Size || File Owner || Owner IP || Owner Port\n");
+//	while (list_next(iter) != NULL) {
+//		ml_entry_t *entry = list_current(iter);
+//		printf("%s || %s || %s || %s || %s\n",
+//				entry->filename, entry->size, entry->owner, entry->ip, entry->port);
+//	}
+	char *buf;
+	buf = malloc(1024 * 25);
+	create_file_list(buf);
+	printf("%s\n", buf);
+	free(buf);
 }
 
 //int request_file_list(int sock) {
@@ -119,7 +179,7 @@ int add_files(int sock, char *data) {
 //	return result;
 //}
 int perform_ls(int sock) {
-	int result;
+	//int result;
 	packet_header_p ph = create_packet_header();
 	void *buf = NULL;
 
@@ -133,7 +193,7 @@ int perform_ls(int sock) {
 		return -1;
 	}
 
-	result = toreceive(sock, 0, &ph, &buf, 1, 0);
+	toreceive(sock, 0, &ph, &buf, 1, 0);
 
 	if (ph->error != E_SUCCESS) {
 		return -1;
@@ -142,7 +202,7 @@ int perform_ls(int sock) {
 	if (buf != NULL) {
 		printf("Buffer = %s\n", (char *) buf);
 		// TODO Add files to master list
-		result = add_files(sock, (char *) buf);
+		add_files(sock, (char *) buf);
 	}
 
 	destroy_packet_header(ph);
@@ -222,16 +282,26 @@ void *thread_process(void *params) {
 				print_client_list();
 				send_error(sock, 0, E_SUCCESS);
 
-				// TODO Request file list from client
+				// Request file list from client
 				result = perform_ls(sock);
 				if (result < 0) {
 					fprintf(stderr, "ls failed\n");
+				} else {
+					printf("Printing file list...\n");
+					//print_file_list();
+					// TODO Send file list to clients
+					char *buf;
+					buf = malloc(1024 * 25);
+					create_file_list(buf);
+					printf("%s\n", buf);
+					packet_header_p ph = create_packet_header();
+					ph->command = CMD_PUSH_LIST;
+					ph->error = E_SUCCESS;
+					ph->length = strlen(buf) + 1;
+					send_packet(sock, buf, 0, ph);
+					destroy_packet_header(ph);
+					free(buf);
 				}
-//				if (result < 0) {
-//					perror("request_file_list");
-//				} else if (result == E_SUCCESS) {
-//					printf("Client says success!\n");
-//				}
 			}
 
 		/*** Remove Client ***/
