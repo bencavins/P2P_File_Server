@@ -148,6 +148,9 @@ void *handle_get(void *params) {
 	int retval;
 	packet_header_p ph = NULL;
 	void *buf = NULL;
+	FILE *fp;
+	void *file_data;
+	int fsize;
 
 	retval = toreceive(sock, 0, &ph, &buf, 1, 0);
 	if (retval < 0) {
@@ -156,7 +159,42 @@ void *handle_get(void *params) {
 	}
 	printf("buffer = %s\n", (char *) buf);
 
+	// TODO Open file and read data
+	if ((fp = fopen((char *) buf, "rb")) == NULL) {
+		perror("fopen");
+		return NULL;
+	}
+
+	/* Determine size of file */
+	if (fseek(fp, 0, SEEK_END) < 0) {
+		perror("fseek");
+		return NULL;
+	}
+	if ((fsize = ftell(fp)) < 0) {
+		perror("ftell");
+		return NULL;
+	}
+	rewind(fp);
+	printf("filesize = %d\n", fsize);
+
+	/* Allocate memory for file data */
+	file_data = malloc(fsize);
+
+	/* Read data from file */
+	fread(file_data, sizeof(char), fsize, fp);
+
+	// TODO Send data to peer
+	ph->command = 0;
+	ph->error = E_SUCCESS;
+	ph->flags = FLAG_ERROR;
+	ph->length = fsize;
+	send_packet(sock, file_data, 0, ph);
+
+	/* Free data and close file */
+	fclose(fp);
+	destroy_packet_header(ph);
 	free(buf);
+	free(file_data);
 
 	return NULL;
 }
@@ -186,7 +224,6 @@ void *listen_process(void *params) {
 				new_sock = accept(sock, (struct sockaddr *) &remote_addr, &len);
 				printf("accepted\n");
 				printf("port = %d\n", ntohs(remote_addr.sin_port));
-				// TODO Handle get request
 				spawn_thread(handle_get, &new_sock);
 			}
 		}
@@ -202,32 +239,64 @@ void *listen_process(void *params) {
 	return NULL;
 }
 
-int send_get(char *filename, char *ip, char *port) {
+int perform_get(char *filename, char *ip, char *port) {
 	int sock;
 	struct sockaddr_in remote_addr;
 	socklen_t len = sizeof(remote_addr);
 	packet_header_p ph;
+	void *buf;
+	FILE *fp;
 
+	// Create address structure
 	memset(&remote_addr, '\0', sizeof(remote_addr));
 	remote_addr.sin_family = AF_INET;
 	remote_addr.sin_port = htons(atoi(port));
 	remote_addr.sin_addr.s_addr = inet_addr(ip);
 
+	// Create socket
 	if ((sock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
 		perror("socket");
 		return -1;
 	}
 
+	// Connect to socket
 	if (connect(sock, (struct sockaddr *) &remote_addr, len) < 0) {
 		perror("connect");
 		return -1;
 	}
 
+	// Create header
 	ph = create_packet_header();
 	ph->command = CMD_GET;
 	ph->length = strlen(filename) + 1;
 
-	return send_packet(sock, filename, 0, ph);
+	/* Send packet */
+	if (send_packet(sock, filename, 0, ph) < 0) {
+		perror("send_packet");
+		return -1;
+	}
+
+	/* Receive packet */
+	if (toreceive(sock, 0, &ph, &buf, 1, 0) < 0) {
+		perror("toreceive");
+		return -1;
+	}
+
+	/* Write data to file */
+	if ((fp = fopen(filename, "wb+")) == NULL) {
+		perror("fopen");
+		return -1;
+	}
+	if (buf != NULL) {
+		fwrite(buf, sizeof(char), ph->length, fp);
+	}
+
+	/* Free data and close file */
+	destroy_packet_header(ph);
+	free(buf);
+	fclose(fp);
+
+	return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -351,7 +420,7 @@ int main(int argc, char *argv[]) {
 			printf("ip = %s\n", ip_addr);
 			printf("port = %s\n", port_str);
 
-			send_get(filename, ip_addr, port_str);
+			perform_get(filename, ip_addr, port_str);
 
 //			memset(data, '\0', sizeof(data));
 //			strcat(data, filename);
