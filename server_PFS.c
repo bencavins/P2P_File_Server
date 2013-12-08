@@ -20,18 +20,33 @@
 #include "protocol.h"
 #include "list.h"
 
-
 #define USAGE "<port number>"
 #define ARG_MIN 1
 #define BACKLOG 10
 
+typedef struct master_list_entry {
+	char filename[FILENAME_MAX];
+	char size[64];
+	char owner[MAX_CLIENT_NAME_LEN];
+	char ip[24];
+	char port[24];
+} ml_entry_t;
+
+typedef struct client {
+	char name[MAX_CLIENT_NAME_LEN];
+	char listen_port[24];
+	int sock;
+} client_t;
+
 list_p thread_pool;
 list_p clients;
+
 
 int client_exists(char *name) {
 	list_iter_p iter = list_iterator(clients, FRONT);
 	while (list_next(iter) != NULL) {
-		if (strcmp(name, list_current(iter)) == 0) {
+		client_t *client = list_current(iter);
+		if (strcmp(name, client->name) == 0) {
 			return 1;
 		}
 	}
@@ -40,21 +55,34 @@ int client_exists(char *name) {
 
 void print_client_list() {
 	list_iter_p iter = list_iterator(clients, FRONT);
-	printf("Clients:\n");
+	printf("--- Clients ---\n");
 	while (list_next(iter) != NULL) {
-		printf("%s\n", (char *) list_current(iter));
+		client_t *client = list_current(iter);
+		printf("%s, %s, %d\n", client->name, client->listen_port, client->sock);
 	}
 }
 
-void register_client(char *name, size_t size) {
-	list_add(clients, name, size);
-	print_client_list();
+int reg_client(char *str, int sock) {
+	char name[MAX_CLIENT_NAME_LEN];
+	char port[24];
+	client_t client;
+
+	sscanf(str, "%s %s", name, port);
+
+	strncpy(client.name, name, sizeof(client.name));
+	strncpy(client.listen_port, port, sizeof(client.listen_port));
+	client.sock = sock;
+
+	list_add(clients, &client, sizeof(client));
+
+	return 0;
 }
 
 void remove_client(char *name) {
 	list_iter_p iter = list_iterator(clients, FRONT);
 	while (list_next(iter) != NULL) {
-		if (strcmp(list_current(iter), name) == 0) {
+		client_t *client = list_current(iter);
+		if (strcmp(name, client->name) == 0) {
 			free(list_current(iter));
 			list_pluck(clients, iter->current);
 			break;
@@ -142,7 +170,8 @@ void *thread_process(void *params) {
 				send_error(sock, 0, E_DUPLICATE_NAME);
 			} else {
 				printf("registering client %s\n", buf);
-				list_add(clients, buf, pkt_hdr->length);
+				//list_add(clients, buf, pkt_hdr->length);
+				reg_client(buf, sock);
 				print_client_list();
 				send_error(sock, 0, E_SUCCESS);
 
